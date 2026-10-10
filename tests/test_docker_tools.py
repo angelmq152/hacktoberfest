@@ -105,3 +105,18 @@ def test_short_name_resolution(monkeypatch):
         TOOLS["restart_container"].validate({"name": "db"})
     with pytest.raises(ToolError):
         TOOLS["restart_container"].validate({"name": "secret"})
+
+
+def test_fuzzy_name_resolution_for_speech_typos(monkeypatch):
+    items = [FakeContainer("hackbot-demo-grafana"), FakeContainer("hackbot-demo-uptime-kuma"),
+             FakeContainer("demo-redis"), FakeContainer("demo-db"), FakeContainer("other-db")]
+    monkeypatch.setattr(docker_tools, "_client", FakeClient(items))
+    validate = TOOLS["container_status"].validate
+    assert validate({"name": "graffana"}) == {"name": "hackbot-demo-grafana"}
+    assert validate({"name": "garafana"}) == {"name": "hackbot-demo-grafana"}
+    assert validate({"name": "uptime kuma"}) == {"name": "hackbot-demo-uptime-kuma"}
+    assert validate({"name": "redsi"}) == {"name": "demo-redis"}
+    with pytest.raises(ToolError, match="ambiguous"):
+        validate({"name": "dbb"})
+    with pytest.raises(ToolError, match="not managed"):
+        validate({"name": "mysql"})
