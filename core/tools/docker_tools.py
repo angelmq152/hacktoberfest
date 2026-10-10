@@ -56,9 +56,17 @@ def _check_name(value) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ToolError("'name' must be a non-empty string")
     name = value.strip()
-    if name not in list_names():
-        raise ToolError(f"container '{name}' is not managed by this bot")
-    return name
+    names = list_names()
+    if name in names:
+        return name
+    # Accept short names ("redis" -> "hackbot-demo-redis") when the match is unique
+    low = name.lower()
+    matches = [n for n in names if n.lower().endswith(("-" + low, "_" + low))]
+    if len(matches) == 1:
+        return matches[0]
+    if matches:
+        raise ToolError(f"'{name}' is ambiguous: {', '.join(matches)}")
+    raise ToolError(f"container '{name}' is not managed by this bot")
 
 
 def _parse_time(value: str) -> datetime:

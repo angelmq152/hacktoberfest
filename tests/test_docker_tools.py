@@ -3,7 +3,7 @@ import pytest
 from core.tools import TOOLS, docker_tools
 from core.tools.base import ToolError
 from core.tools.docker_tools import calc_cpu_percent, calc_memory, truncate_logs
-from tests.conftest import make_stats
+from tests.conftest import FakeClient, FakeContainer, make_stats
 
 
 def test_registry_and_dangerous_flags():
@@ -93,3 +93,15 @@ async def test_actions(ctx, containers):
     for tool, verb in [("restart_container", "restart"), ("stop_container", "stop"), ("start_container", "start")]:
         await TOOLS[tool].run(TOOLS[tool].validate({"name": "db"}), ctx)
         assert containers[1].calls[-1][0] == verb
+
+
+def test_short_name_resolution(monkeypatch):
+    items = [FakeContainer("demo-redis"), FakeContainer("demo-db"), FakeContainer("other-db"),
+             FakeContainer("x-secret", labels={})]
+    monkeypatch.setattr(docker_tools, "_client", FakeClient(items))
+    assert TOOLS["restart_container"].validate({"name": "redis"}) == {"name": "demo-redis"}
+    assert TOOLS["restart_container"].validate({"name": "demo-db"}) == {"name": "demo-db"}
+    with pytest.raises(ToolError, match="ambiguous"):
+        TOOLS["restart_container"].validate({"name": "db"})
+    with pytest.raises(ToolError):
+        TOOLS["restart_container"].validate({"name": "secret"})
