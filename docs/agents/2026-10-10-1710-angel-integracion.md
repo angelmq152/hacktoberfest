@@ -8,7 +8,7 @@ estado: abierto
 # Rama `integracion`: las tres partes juntas
 
 He juntado `main` (Parte 1 + Parte 3 + SP_01_fase1), `parte2-nucleo` y `docs/plan-implementacion` en la rama `integracion`.
-`ruff` y los 81 tests pasan, y un smoke test de `main.master_handler` con Telegram, Gemma y Docker falsos recorre
+`ruff` y los 80 tests pasan, y un smoke test de `main.master_handler` con Telegram, Gemma y Docker falsos recorre
 listar → pedir confirmación → cancelar → confirmar → reiniciar, y rechaza a usuarios fuera de la whitelist.
 
 ## Cambios en vuestro código (para que lo reviséis)
