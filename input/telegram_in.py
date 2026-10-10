@@ -14,6 +14,9 @@ from core.tools.docker_tools import list_names
 
 logger = logging.getLogger(__name__)
 
+AUDIO_DOWNLOAD_ERROR = "⚠️ No he podido descargar tu audio de Telegram. ¿Me lo reenvías?"
+AUDIO_STT_ERROR = "⚠️ No he podido entender el audio. ¿Me lo repites o me lo escribes?"
+
 async def to_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> IncomingRequest | None:
     """
     Transforms a Telegram Update into an IncomingRequest.
@@ -64,18 +67,26 @@ async def to_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Inco
         
         media_file = message.voice or message.audio
         
-        try:
-            file = await media_file.get_file(read_timeout=30, connect_timeout=30)
-            
-            # Download to memory
-            out_bytes = io.BytesIO()
-            await file.download_to_memory(out=out_bytes)
-        except Exception as e:
-            logger.error(f"Error downloading voice from Telegram: {e}")
-            return IncomingRequest(chat_id=chat.id, user_id=user.id, text="mock: error bajando audio", source=source)
+        out_bytes = None
+        for attempt in range(2):
+            try:
+                file = await media_file.get_file(read_timeout=30, connect_timeout=30)
 
-        
+                # Download to memory
+                out_bytes = io.BytesIO()
+                await file.download_to_memory(out=out_bytes, read_timeout=60)
+                break
+            except Exception as e:
+                logger.error(f"Error downloading voice from Telegram (attempt {attempt + 1}): {e}")
+                out_bytes = None
+        if out_bytes is None:
+            await context.bot.send_message(chat_id=chat.id, text=AUDIO_DOWNLOAD_ERROR)
+            return None
+
         text = await transcribe_audio(out_bytes)
+        if not text.strip():
+            await context.bot.send_message(chat_id=chat.id, text=AUDIO_STT_ERROR)
+            return None
         
     elif message.text:
         source = "text"
