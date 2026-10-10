@@ -1,4 +1,5 @@
 import asyncio
+import difflib
 import re
 from datetime import UTC, datetime, timedelta
 
@@ -8,6 +9,7 @@ from core.tools.base import ToolContext, ToolError, ToolResult, ToolSpec
 from shared.config import get_settings
 
 LOG_MAX_BYTES = 4096
+FUZZY_CUTOFF = 0.8
 TAIL_MAX = 500
 
 _client: docker.DockerClient | None = None
@@ -66,6 +68,17 @@ def _check_name(value) -> str:
         return matches[0]
     if matches:
         raise ToolError(f"'{name}' is ambiguous: {', '.join(matches)}")
+    # Tolerate typos from speech-to-text ("graffana" -> "hackbot-demo-grafana") when the match is unique
+    keys = {}
+    for n in names:
+        parts = re.split(r"[-_]", n.lower())
+        for i in range(len(parts)):
+            keys.setdefault("-".join(parts[i:]), set()).add(n)
+    close = {n for k in difflib.get_close_matches(low, keys, n=3, cutoff=FUZZY_CUTOFF) for n in keys[k]}
+    if len(close) == 1:
+        return close.pop()
+    if close:
+        raise ToolError(f"'{name}' is ambiguous: {', '.join(sorted(close))}")
     raise ToolError(f"container '{name}' is not managed by this bot")
 
 
