@@ -1,5 +1,6 @@
 import hashlib
 import asyncio
+import logging
 from pathlib import Path
 from elevenlabs.client import AsyncElevenLabs
 from shared.config import get_settings
@@ -9,10 +10,13 @@ _settings = get_settings()
 API_KEY = _settings.elevenlabs_api_key
 client = AsyncElevenLabs(api_key=API_KEY) if API_KEY else None
 
-VOICE_ID = _settings.elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"
+# Sarah (premade): las voces de la biblioteca, como Rachel, dan 402 en cuentas gratuitas
+VOICE_ID = _settings.elevenlabs_voice_id or "EXAVITQu4vr4xnSDxMaL"
 MODEL_ID = _settings.elevenlabs_tts_model
 CACHE_DIR = Path("/tmp/tts_cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+logger = logging.getLogger(__name__)
 
 async def convert_mp3_to_ogg(mp3_path: Path, ogg_path: Path) -> bool:
     """Convierte MP3 a OGG/Opus usando ffmpeg asíncrono."""
@@ -25,7 +29,7 @@ async def convert_mp3_to_ogg(mp3_path: Path, ogg_path: Path) -> bool:
         await process.wait()
         return process.returncode == 0
     except FileNotFoundError:
-        print("Error: ffmpeg no está instalado o no se encuentra en el PATH.")
+        logger.error("ffmpeg no está instalado o no se encuentra en el PATH.")
         return False
 
 async def get_voice_note(text: str) -> Path | None:
@@ -59,5 +63,5 @@ async def get_voice_note(text: str) -> Path | None:
             return ogg_path
         return None
     except Exception as e:
-        print(f"Error en TTS (ElevenLabs): {e}")
+        logger.error(f"Error en TTS (ElevenLabs): {e}")
         return None

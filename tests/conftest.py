@@ -4,6 +4,7 @@ import pytest
 
 from core.tools import docker_tools
 from core.tools.base import ToolContext
+from shared.config import Settings, get_settings
 
 LABEL = "hackbot.manage=true"
 
@@ -71,6 +72,17 @@ def containers():
         FakeContainer("old", status="exited", exit_code=137),
         FakeContainer("secret", labels={}),
     ]
+
+
+@pytest.fixture(autouse=True)
+def no_dotenv(monkeypatch):
+    # Tests must not depend on the developer's local .env (whitelist, tokens...)
+    monkeypatch.setitem(Settings.model_config, "env_file", None)
+    for key in ("ALLOWED_USER_IDS", "OUT_DIR"):
+        monkeypatch.delenv(key, raising=False)
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture(autouse=True)
