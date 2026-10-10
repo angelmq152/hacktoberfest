@@ -1,0 +1,10 @@
+# hacktoberfest
+
+Proyecto colaborativo para Hacktoberfest 2026.
+
+## Cómo contribuir
+
+1. Haz fork del repo (o pide acceso como colaborador).
+2. Crea una rama: `git checkout -b mi-cambio`
+3. Commit y push a tu rama.
+4. Abre un Pull Request contra `main`.
