@@ -69,7 +69,7 @@ async def test_list_status_logs_stats(ctx, containers):
     r = await TOOLS["list_containers"].run({"all": False}, ctx)
     assert "web" in r.data and "old" not in r.data and "secret" not in r.data
     r = await TOOLS["list_containers"].run({"all": True}, ctx)
-    assert "old: exited" in r.data
+    assert "old: exited" in r.data and "web: running (web:latest) | restarts 2" in r.data
 
     r = await TOOLS["container_status"].run({"name": "web"}, ctx)
     assert "running" in r.data and "health: healthy" in r.data and "restarts: 2" in r.data

@@ -183,7 +183,7 @@ def _v_list(args: dict) -> dict:
 
 async def _run_list(args: dict, ctx: ToolContext) -> ToolResult:
     def work():
-        return [f"{c.name}: {c.status} ({c.attrs.get('Config', {}).get('Image', '?')})"
+        return [f"{c.name}: {c.status} ({c.attrs.get('Config', {}).get('Image', '?')}) | restarts {c.attrs.get('RestartCount', 0)}"
                 for c in sorted(_managed(args["all"]), key=lambda c: c.name)]
 
     lines = await asyncio.to_thread(work)
@@ -283,7 +283,7 @@ def _action(verb: str, past: str):
 DOCKER_TOOLS: dict[str, ToolSpec] = {
     t.name: t
     for t in [
-        ToolSpec("list_containers", "List managed containers with state and image.",
+        ToolSpec("list_containers", "List managed containers with state, image and restart count.",
                  {"all": "bool, include stopped containers (default false)"}, False, _v_list, _run_list),
         ToolSpec("container_status", "Detailed status of one container: state, health, uptime, restarts, image, exit code.",
                  {"name": "container name"}, False, _v_name, _run_status),

@@ -85,9 +85,17 @@ async def test_double_invalid_is_error():
 
 
 async def test_tool_limit():
-    a, _, runs = agent([tool_json("list")] * (MAX_TOOL_CALLS + 1))
+    a, llm, runs = agent([tool_json("list")] * (MAX_TOOL_CALLS + 2))
     r = await a.handle(req())
-    assert r.error and len(runs) == MAX_TOOL_CALLS
+    assert r.error and "Límite" in r.error and len(runs) == MAX_TOOL_CALLS
+    assert "límite" in llm.calls[-1][-1]["content"]
+
+
+async def test_tool_limit_gets_one_last_chance_to_answer():
+    a, _, runs = agent([tool_json("list")] * (MAX_TOOL_CALLS + 1) + [final_json("resumen")])
+    r = await a.handle(req())
+    assert r.speech == "resumen" and r.error is None and len(runs) == MAX_TOOL_CALLS
+    assert len(r.files) == MAX_TOOL_CALLS
 
 
 async def test_unknown_tool_and_validation_error_go_back_to_model():
