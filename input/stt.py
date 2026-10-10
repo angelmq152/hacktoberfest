@@ -29,10 +29,10 @@ async def transcribe_audio(audio_data: io.BytesIO) -> str:
             if response.status_code != 200:
                 import logging
                 logging.getLogger(__name__).error(f"STT Error: {response.status_code} - {response.text}")
-                return "mock: error transcribiendo el audio"
+                return ""
             result = response.json()
             return result.get("text", "")
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Exception during STT: {e}")
-        return "mock: error de conexión en stt"
+        return ""

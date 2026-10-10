@@ -78,6 +78,13 @@ async def test_invalid_json_then_retry_ok():
     assert "JSON" in llm.calls[1][-1]["content"]
 
 
+async def test_empty_output_is_retried_without_notice():
+    a, llm, _ = agent(["", final_json("ok")])
+    r = await a.handle(req())
+    assert r.speech == "ok" and r.error is None
+    assert llm.calls[0] == llm.calls[1]
+
+
 async def test_double_invalid_is_error():
     a, _, _ = agent(["mal", "peor"])
     r = await a.handle(req())

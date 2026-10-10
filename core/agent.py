@@ -54,8 +54,9 @@ LIMIT_NOTICE = (
 )
 
 RETRY_NOTICE = (
-    "Tu respuesta anterior no era un JSON válido. Responde solo con un objeto JSON "
-    '{"tool": ..., "args": {...}} o {"final": {"speech": ..., "text": ...}}.'
+    "Tu respuesta anterior no era un JSON válido. Vuelve a responder a la última petición del usuario, solo "
+    'con un objeto JSON {"tool": ..., "args": {...}} o {"final": {"speech": ..., "text": ...}}. '
+    "No menciones este aviso."
 )
 
 
@@ -171,6 +172,10 @@ class Agent:
 
     async def _ask(self, messages: list[dict]) -> tuple[str, ToolCall | Final] | None:
         raw = await self.llm.chat(messages)
+        if not raw.strip():
+            # An empty completion is usually a transient server hiccup: ask again as is
+            log.warning("empty LLM output, retrying")
+            raw = await self.llm.chat(messages)
         try:
             return raw, parse_model_output(raw)
         except LLMParseError:
