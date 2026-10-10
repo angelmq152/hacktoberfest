@@ -1,15 +1,16 @@
-import os
 import hashlib
 import asyncio
 from pathlib import Path
 from elevenlabs.client import AsyncElevenLabs
+from shared.config import get_settings
 
-# Configuración básica
-API_KEY = os.getenv("ELEVENLABS_API_KEY")
+# Configuración básica (lee el .env igual que el resto del bot)
+_settings = get_settings()
+API_KEY = _settings.elevenlabs_api_key
 client = AsyncElevenLabs(api_key=API_KEY) if API_KEY else None
 
-VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")
-MODEL_ID = os.getenv("ELEVENLABS_TTS_MODEL", "eleven_flash_v2_5")
+VOICE_ID = _settings.elevenlabs_voice_id or "21m00Tcm4TlvDq8ikWAM"
+MODEL_ID = _settings.elevenlabs_tts_model
 CACHE_DIR = Path("/tmp/tts_cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

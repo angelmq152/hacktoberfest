@@ -1,17 +1,17 @@
 import io
 import httpx
-from shared.config import settings
+from shared.config import get_settings
 
 async def transcribe_audio(audio_data: io.BytesIO) -> str:
     """
     Transcribes OGG Opus audio using ElevenLabs Speech-to-Text (Scribe).
     """
-    if not settings.elevenlabs_api_key:
+    if not get_settings().elevenlabs_api_key:
         return "mock: lista los contenedores"
         
     url = "https://api.elevenlabs.io/v1/speech-to-text"
     headers = {
-        "xi-api-key": settings.elevenlabs_api_key
+        "xi-api-key": get_settings().elevenlabs_api_key
     }
     
     audio_data.seek(0)

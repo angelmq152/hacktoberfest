@@ -1,0 +1,281 @@
+# Stack de PRUEBA para el bot de Telegram (hackbot). Solo interno: sin ports, sin Caddy.
+name: hackbot-demo
+
+x-common: &common
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: local
+    options:
+      max-size: "20m"
+      max-file: "3"
+  networks:
+    - demo_net
+
+x-managed: &managed
+  hackbot.manage: "true"
+
+services:
+  glpi:
+    <<: *common
+    image: glpi/glpi:11.0.8
+    container_name: hackbot-demo-glpi
+    labels: *managed
+    depends_on:
+      glpi-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r 'exit(@fsockopen(\"127.0.0.1\",80)?0:1);'"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    mem_limit: 384m
+    cpus: 1.0
+
+  glpi-db:
+    <<: *common
+    image: mariadb:11.8.6
+    container_name: hackbot-demo-glpi-db
+    environment:
+      MARIADB_ROOT_PASSWORD: ${GLPI_DB_ROOT_PASSWORD}
+      MARIADB_DATABASE: glpi
+      MARIADB_USER: glpi
+      MARIADB_PASSWORD: ${GLPI_DB_PASSWORD}
+    volumes:
+      - glpi_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 256m
+    cpus: 0.5
+
+  grafana:
+    <<: *common
+    image: grafana/grafana:11.4.0
+    container_name: hackbot-demo-grafana
+    labels: *managed
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: 192m
+    cpus: 0.5
+
+  affine:
+    <<: *common
+    image: ghcr.io/toeverything/affine:0.27.3
+    container_name: hackbot-demo-affine
+    labels: *managed
+    depends_on:
+      affine-db:
+        condition: service_healthy
+      affine-redis:
+        condition: service_healthy
+      affine-migration:
+        condition: service_completed_successfully
+    environment: &affine_env
+      REDIS_SERVER_HOST: affine-redis
+      DATABASE_URL: postgresql://affine:${AFFINE_DB_PASSWORD}@affine-db:5432/affine
+      AFFINE_INDEXER_ENABLED: "false"
+    volumes:
+      - affine_storage:/root/.affine/storage
+      - affine_config:/root/.affine/config
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          node -e "require('http').get('http://localhost:3010/api/health',
+          r => process.exit(r.statusCode < 400 ? 0 : 1))
+          .on('error', () => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    mem_limit: 640m
+    cpus: 1.0
+
+  affine-migration:
+    image: ghcr.io/toeverything/affine:0.27.3
+    container_name: hackbot-demo-affine-migration
+    command: ["sh", "-c", "node ./scripts/self-host-predeploy.js"]
+    depends_on:
+      affine-db:
+        condition: service_healthy
+      affine-redis:
+        condition: service_healthy
+    environment: *affine_env
+    volumes:
+      - affine_storage:/root/.affine/storage
+      - affine_config:/root/.affine/config
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: local
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks:
+      - demo_net
+    restart: "no"
+    mem_limit: 512m
+    cpus: 1.0
+
+  affine-db:
+    <<: *common
+    image: pgvector/pgvector:pg16
+    container_name: hackbot-demo-affine-db
+    environment:
+      POSTGRES_USER: affine
+      POSTGRES_PASSWORD: ${AFFINE_DB_PASSWORD}
+      POSTGRES_DB: affine
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - affine_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U affine -d affine"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 192m
+    cpus: 0.5
+
+  affine-redis:
+    <<: *common
+    image: redis:7-alpine
+    container_name: hackbot-demo-affine-redis
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 64m
+    cpus: 0.25
+
+  nginx:
+    <<: *common
+    image: nginx:1.27-alpine
+    container_name: hackbot-demo-nginx
+    labels: *managed
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 32m
+    cpus: 0.25
+
+  redis:
+    <<: *common
+    image: redis:7-alpine
+    container_name: hackbot-demo-redis
+    labels: *managed
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 64m
+    cpus: 0.25
+
+  postgres:
+    <<: *common
+    image: postgres:16-alpine
+    container_name: hackbot-demo-postgres
+    labels: *managed
+    environment:
+      POSTGRES_USER: demo
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: demo
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    mem_limit: 128m
+    cpus: 0.5
+
+  uptime-kuma:
+    <<: *common
+    image: louislam/uptime-kuma:1.23.16
+    container_name: hackbot-demo-uptime-kuma
+    labels: *managed
+    volumes:
+      - kuma_data:/app/data
+    healthcheck:
+      test: ["CMD", "extra/healthcheck"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    mem_limit: 192m
+    cpus: 0.5
+
+  # Escupe logs continuamente: demo de "muestrame los logs de ..."
+  logger:
+    <<: *common
+    image: alpine:3.22
+    container_name: hackbot-demo-logger
+    labels: *managed
+    cap_drop: [ALL]
+    command: ["sh", "-c", "i=0; while true; do i=$$((i+1)); echo \"$$(date -u +%FT%TZ) INFO tick=$$i heartbeat ok\"; [ $$((i % 7)) -eq 0 ] && echo \"$$(date -u +%FT%TZ) WARN tick=$$i slow response\"; sleep 3; done"]
+    mem_limit: 16m
+    cpus: 0.1
+
+  # Loguea un poco y sale con error a proposito (se queda caido): demo "por que se ha caido el worker?"
+  worker:
+    <<: *common
+    image: alpine:3.22
+    container_name: hackbot-demo-worker
+    labels: *managed
+    restart: "no"
+    cap_drop: [ALL]
+    command: ["sh", "-c", "for i in 1 2 3 4 5; do echo \"worker: processing job $$i\"; sleep 1; done; echo 'worker: ERROR cannot connect to queue backend at queue.internal:5672 (connection refused)' >&2; exit 1"]
+    mem_limit: 16m
+    cpus: 0.1
+
+  # Healthcheck que siempre falla: queda en estado unhealthy
+  unhealthy:
+    <<: *common
+    image: alpine:3.22
+    container_name: hackbot-demo-unhealthy
+    labels: *managed
+    cap_drop: [ALL]
+    command: ["sh", "-c", "echo 'service up but dependency check failing'; sleep infinity"]
+    healthcheck:
+      test: ["CMD-SHELL", "echo 'healthcheck: db ping timeout' >&2; exit 1"]
+      interval: 15s
+      timeout: 3s
+      retries: 2
+    mem_limit: 16m
+    cpus: 0.1
+
+networks:
+  demo_net:
+    name: hackbot-demo_net
+
+volumes:
+  glpi_db:
+  grafana_data:
+  affine_storage:
+  affine_config:
+  affine_db:
+  pg_data:
+  kuma_data:

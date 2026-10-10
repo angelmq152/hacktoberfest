@@ -2,7 +2,7 @@ import logging
 from telegram import Update
 from telegram.ext import Application, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-from shared.config import settings
+from shared.config import get_settings
 from input.telegram_in import to_request
 from core.agent import handle
 from output.telegram_out import send
@@ -33,6 +33,7 @@ async def master_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 def main() -> None:
     """Run the bot."""
+    settings = get_settings()
     if not settings.telegram_token:
         logger.error("TELEGRAM_TOKEN is not set in the environment.")
         return

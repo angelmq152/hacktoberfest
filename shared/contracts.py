@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+
 @dataclass
 class IncomingRequest:
     chat_id: int
@@ -11,16 +12,19 @@ class IncomingRequest:
     lang: str = "es"
     confirm_action_id: str | None = None     # set when the user presses "Confirm"
 
+
 @dataclass
 class OutFile:
     path: Path
     mime: str                                # application/pdf, xlsx, image/png...
     caption: str = ""
 
+
 @dataclass
 class Confirmation:
     action_id: str                           # pending action stored in core
     prompt: str                              # "¿Reinicio 'redis'?"
+
 
 @dataclass
 class BotResponse:
