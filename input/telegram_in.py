@@ -1,3 +1,4 @@
+import asyncio
 import io
 import difflib
 import logging
@@ -6,8 +7,9 @@ from telegram.constants import ChatAction
 from telegram.ext import ContextTypes
 
 from shared.contracts import IncomingRequest
-from shared.config import settings
+from shared.config import get_settings
 from input.stt import transcribe_audio
+from core.tools.base import ToolError
 from core.tools.docker_tools import list_names
 
 logger = logging.getLogger(__name__)
@@ -23,7 +25,7 @@ async def to_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Inco
     if not user or not chat:
         return None
         
-    if user.id not in settings.allowed_users_list:
+    if user.id not in get_settings().allowed_ids:
         logger.warning(f"Unauthorized access attempt from user_id: {user.id} ({user.username})")
         return None
 
@@ -83,7 +85,10 @@ async def to_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Inco
         return None
 
     # Fuzzy match container names
-    text = _fuzzy_match_containers(text)
+    try:
+        text = _fuzzy_match_containers(text, await asyncio.to_thread(list_names))
+    except ToolError as e:
+        logger.warning(f"Could not list containers for fuzzy matching: {e}")
 
     return IncomingRequest(
         chat_id=chat.id,
@@ -92,11 +97,10 @@ async def to_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Inco
         source=source,
     )
 
-def _fuzzy_match_containers(text: str) -> str:
+def _fuzzy_match_containers(text: str, actual_names: list[str]) -> str:
     """
     Finds potential container names in the text and replaces them with the actual names.
     """
-    actual_names = list_names()
     if not actual_names:
         return text
         
