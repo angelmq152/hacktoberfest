@@ -1,6 +1,6 @@
 # hacktoberfest
 
-Proyecto colaborativo para Hacktoberfest 2026.
+Proyecto colaborativo para Hacktoberfest 2026: bot de Telegram por voz para gestionar Docker y generar informes. Plan: [docs/PLAN.md](docs/PLAN.md).
 
 ## Cómo contribuir
 
