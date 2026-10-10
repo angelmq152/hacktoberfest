@@ -1,0 +1,8 @@
+python-telegram-bot[job-queue]==22.8
+elevenlabs
+docker
+openpyxl
+reportlab
+matplotlib
+httpx
+pydantic-settings
