@@ -2,6 +2,7 @@ from telegram.ext import ExtBot
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from shared.contracts import BotResponse
 from output.tts import get_voice_note
+from output.llm_audio import optimize_for_speech
 import html
 
 MAX_TEXT_LENGTH = 4096
@@ -14,8 +15,11 @@ async def send(bot: ExtBot, resp: BotResponse) -> None:
         await bot.send_message(chat_id=resp.chat_id, text=f"⚠️ {html.escape(resp.error)}", parse_mode="HTML")
         
     # 2. Enviar Nota de Voz (speech)
-    if resp.speech:
-        voice_path = await get_voice_note(resp.speech)
+    if resp.speech or resp.text:
+        # Usamos Gemma para refinar lo que vamos a locutar
+        refined_speech = await optimize_for_speech(resp.text, resp.speech)
+        
+        voice_path = await get_voice_note(refined_speech)
         if voice_path and voice_path.exists():
             with open(voice_path, "rb") as voice_file:
                 await bot.send_voice(chat_id=resp.chat_id, voice=voice_file, read_timeout=60, write_timeout=60)
